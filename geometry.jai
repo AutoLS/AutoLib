@@ -1,0 +1,93 @@
+Shape :: struct
+{
+    local_vertices: [..] Vector3;
+    global_vertices: [..] Vector3;
+    vertices_count: s32;
+
+    center: Vector3;
+    scale: Vector3;
+
+    radius: float;
+
+    model: Matrix4;
+}
+
+make_rect :: (position: Vector3 = .{}, scale: Vector3 = .{}) -> Shape
+{
+    rect: Shape;
+    rect.center = position;
+    rect.scale = scale;
+    update_shape_model(*rect);
+    rect.vertices_count = 4;
+    array_reserve(*rect.global_vertices, rect.vertices_count);
+    rect.global_vertices.count = rect.vertices_count;
+
+    array_add(*rect.local_vertices, Vector3.{-0.5, 0.5, 0});
+    array_add(*rect.local_vertices, Vector3.{-0.5, -0.5, 0});
+    array_add(*rect.local_vertices, Vector3.{0.5, -0.5, 0});
+    array_add(*rect.local_vertices, Vector3.{0.5, 0.5, 0});
+
+    update_shape_vertices(*rect);
+
+    return rect;
+}
+
+get_furthest_vertex :: (using shape: Shape) -> Vector3
+{
+    max := FLOAT64_MIN;
+    index := 0;
+
+    for global_vertices
+    {
+        d := length(it - center);
+        if d > max 
+        {
+            max = d;
+            index = it_index;
+        }
+    }
+
+    return global_vertices[index];
+}
+
+get_shape_radius :: (using shape: Shape) -> float
+{
+    return length(get_furthest_vertex(shape) - center);
+}
+
+update_shape_model :: (using shape: *Shape)
+{
+    model = make_model_matrix(center, scale);
+}
+
+update_shape_model :: (using shape: *Shape, new_position: Vector3, new_scale: Vector3, axis: Vector3 = .{}, angle: float = 0)
+{
+    center = new_position;
+    scale = new_scale;
+    model = make_model_matrix(new_position, new_scale, axis, angle);
+}
+
+update_shape_vertices :: (using shape: *Shape)
+{
+    for local_vertices
+    {
+        updated_vertex := Vector4.{it.x, it.y, it.z, 1};
+        updated_vertex = model * updated_vertex; 
+        global_vertices[it_index] = updated_vertex.xyz;
+    }
+
+    radius = get_shape_radius(shape);
+}
+
+update_shape :: (using shape: *Shape)
+{
+    update_shape_model(shape);
+    update_shape_vertices(shape);
+}
+
+update_shape :: (using shape: *Shape, new_position: Vector3, new_scale: Vector3, q: Quaternion)
+{
+    x, y, z, theta := get_axis_and_angle(q);
+    update_shape_model(shape, new_position, new_scale, .{xx x, xx y, xx z}, xx theta);
+    update_shape_vertices(shape);
+}
