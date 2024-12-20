@@ -19,6 +19,8 @@ Key_Code :: enum u32
 	right :: SDL_SCANCODE_RIGHT;
 	up :: SDL_SCANCODE_UP;
 	down :: SDL_SCANCODE_DOWN;
+
+	space :: SDL_SCANCODE_SPACE;
 }
 
 Input :: struct
