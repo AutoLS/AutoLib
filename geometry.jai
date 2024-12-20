@@ -86,6 +86,13 @@ update_shape_model :: (using shape: *Shape, new_position: Vector3, new_scale: Ve
     model = make_model_matrix(new_position, new_scale, axis, angle);
 }
 
+update_shape_model :: (using shape: *Shape, new_position: Vector3, new_scale: Vector3, q: Quaternion)
+{
+    center = new_position;
+    scale = new_scale;
+    model = make_model_matrix(new_position, new_scale, q);
+}
+
 update_shape_vertices :: (using shape: *Shape)
 {
     for local_vertices
@@ -106,7 +113,6 @@ update_shape :: (using shape: *Shape)
 
 update_shape :: (using shape: *Shape, new_position: Vector3, new_scale: Vector3, q: Quaternion)
 {
-    x, y, z, theta := get_axis_and_angle(q);
-    update_shape_model(shape, new_position, new_scale, .{xx x, xx y, xx z}, xx theta);
+    update_shape_model(shape, new_position, new_scale, q);
     update_shape_vertices(shape);
 }

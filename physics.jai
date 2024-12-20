@@ -17,17 +17,17 @@ Sim_World :: struct
     collision_resolutions: [..] Resolution;
 }
 
-add_body :: (using world: *Sim_World, p: Vector3, v: Vector3, s: Vector3, mass: float = 10) -> *Rigid_Body
+add_body :: (using world: *Sim_World, p: Vector3, v: Vector3, s: Vector3, mass: float = 10) -> int
 {
     body := make_rigid_body(p, v, s, mass);
     array_add(*bodies, body);
 
-    return *bodies[bodies.count-1];
+    return bodies.count-1;
 }
 
 simulate_world :: (using world: *Sim_World)
 {
-    array_reset_keeping_memory(*collision_resolutions);
+    array_reset(*collision_resolutions);
 
     for i : 0 .. bodies.count-1
     {
@@ -43,7 +43,7 @@ simulate_world :: (using world: *Sim_World)
                 //a.color = .{1, 0, 0, 1};
                 //b.color = .{1, 0, 0, 1};
                 array_add(*collision_resolutions, resolution);
-                //print("overlap: %\n", resolution.depth);
+                print("overlap: %\n", resolution.depth);
                 // for resolution.cp
                 // {
                 //     print("cp:% \n", it);
@@ -226,8 +226,8 @@ resolve_contact :: (using resolution: *Resolution, c: *Contact)
         body_b.velocity += body_b.inverse_mass * j3 * lambda;
 
         //? idk why the direction is flipped here for it to work
-        body_a.angular_velocity -= body_a.inverse_inertia * j2 * lambda;
-        body_b.angular_velocity -= body_b.inverse_inertia * j4 * lambda;
+        body_a.angular_velocity += body_a.inverse_inertia * j2 * lambda;
+        body_b.angular_velocity += body_b.inverse_inertia * j4 * lambda;
 
         va := body_a.velocity + cross(body_a.angular_velocity, r1);
         vb := body_b.velocity + cross(body_b.angular_velocity, r2);

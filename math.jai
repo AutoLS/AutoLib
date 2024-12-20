@@ -49,6 +49,13 @@ make_model_matrix :: (position: Vector3, scale_v: Vector3, axis: Vector3 = .{}, 
     return model;
 }
 
+make_model_matrix :: (position: Vector3, scale_v: Vector3, q: Quaternion) -> Matrix4
+{
+    model := scale(translate(identity_of(Matrix4), .{position.x, position.y, 0}) * to_matrix4(q), .{scale_v.x, scale_v.y, 0});
+
+    return model;
+}
+
 normalize :: (q: Quaternion) -> Quaternion
 {
     result := q;
@@ -70,4 +77,33 @@ normalize :: (q: Quaternion) -> Quaternion
 	}
 
 	return result;
+}
+
+to_matrix4 :: (q: Quaternion) -> Matrix4
+{
+    mat := identity_of(Matrix4);
+
+	y_y := q.y*q.y;
+	z_z := q.z*q.z;
+	x_y := q.x*q.y;
+	z_w := q.z*q.w;
+	x_z := q.x*q.z;
+	y_w := q.y*q.w;
+	x_x := q.x*q.x;
+	y_z := q.y*q.z;
+	x_w := q.x*q.w;
+
+	mat._11 = 1.0 - 2.0 * (y_y + z_z);
+	mat._12 = 2.0 * (x_y + z_w);
+	mat._13 = 2.0 * (x_z - y_w);
+
+	mat._21 = 2.0 * (x_y - z_w);
+	mat._22 = 1.0 - 2.0 * (x_x + z_z);
+	mat._23 = 2.0 * (y_z + x_w);
+
+	mat._31 = 2.0 * (x_z + y_w);
+	mat._32 = 2.0 * (y_z - x_w);
+	mat._33 = 1.0 - 2.0 * (x_x + y_y);
+
+	return mat;
 }
