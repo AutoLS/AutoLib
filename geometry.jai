@@ -19,14 +19,15 @@ make_rect :: (position: Vector3 = .{}, scale: Vector3 = .{}) -> Shape
     rect.scale = scale;
     update_shape_model(*rect);
     rect.vertices_count = 4;
-    array_reserve(*rect.global_vertices, rect.vertices_count);
-    rect.global_vertices.count = rect.vertices_count;
 
     array_add(*rect.local_vertices, Vector3.{-0.5, 0.5, 0});
     array_add(*rect.local_vertices, Vector3.{-0.5, -0.5, 0});
     array_add(*rect.local_vertices, Vector3.{0.5, -0.5, 0});
     array_add(*rect.local_vertices, Vector3.{0.5, 0.5, 0});
-
+    for 0 .. rect.vertices_count-1 
+    {
+        array_add(*rect.global_vertices, .{});
+    }
     update_shape_vertices(*rect);
 
     return rect;
@@ -34,7 +35,7 @@ make_rect :: (position: Vector3 = .{}, scale: Vector3 = .{}) -> Shape
 
 get_furthest_vertex :: (using shape: Shape) -> Vector3
 {
-    max := FLOAT64_MIN;
+    max: float = -FLOAT32_MAX;
     index := 0;
 
     for global_vertices
@@ -48,6 +49,24 @@ get_furthest_vertex :: (using shape: Shape) -> Vector3
     }
 
     return global_vertices[index];
+}
+
+get_furthest_point_index_in_direction :: (using shape: Shape, dir: Vector3) -> int
+{
+    max: float = -FLOAT32_MAX;
+    index: int = 0;
+
+    for global_vertices
+    {
+        projection := dot(it, dir);
+        if projection > max
+        {
+            max = projection;
+            index = it_index;
+        }
+    }
+
+    return index;
 }
 
 get_shape_radius :: (using shape: Shape) -> float

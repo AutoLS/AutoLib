@@ -13,6 +13,7 @@ JSON :: #import "JSON_Plus";
 #load "time.jai";
 #load "opengl.jai";
 #load "geometry.jai";
+#load "collision.jai";
 #load "physics.jai";
 #load "application.jai";
 
