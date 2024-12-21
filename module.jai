@@ -4,6 +4,7 @@
 #import "Deep_Copy";
 #import "Hash_Table";
 #import "Math";
+#import "Random";
 #import "Reflection";
 #import "JSON";
 JSON :: #import "JSON_Plus";
