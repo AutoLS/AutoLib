@@ -59,4 +59,4 @@ main :: ()
 }
 ```
 
-Example video: https://streamable.com/xxszha
+Example physics demo: https://streamable.com/xxszha
