@@ -118,6 +118,7 @@ find_best_edge :: (shape: Shape, n: Vector3) -> Clipping_Edge
 clip :: (v1: Vector3, v2: Vector3, n: Vector3, o: float) -> [..] Vector3
 {
     cp: [..] Vector3;
+    cp.allocator = temp;
 
     d1 := dot(n, v1) - o;
     d2 := dot(n, v2) - o;
