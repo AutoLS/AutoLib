@@ -51,6 +51,15 @@ reset_controller_input :: (input: *Input)
 	input.left_button.was_down= false;
 }
 
+get_mouse_position_flipped :: (using input: Input, win_y: s32) -> Vector2
+{
+	pos := Vector2.{};
+	pos.x = xx mouse_state.x;
+	pos.y = xx (win_y - mouse_state.y);
+
+	return pos;
+}
+
 key_down :: (using input: Input, key: Key_Code) -> bool
 {
 	button_state := table_find_pointer(*keyboard.keys, xx key);
