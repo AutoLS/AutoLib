@@ -1,3 +1,10 @@
+Polygon :: enum u32
+{
+    Rect;
+    Triangle;
+    Right_Triangle;
+}
+
 Shape :: struct
 {
     local_vertices: [..] Vector3;
@@ -10,11 +17,14 @@ Shape :: struct
     radius: float;
 
     model: Matrix4;
+
+    type: Polygon;
 }
 
 make_rect :: (position: Vector3 = .{}, scale: Vector3 = .{}) -> Shape
 {
     rect: Shape;
+    rect.type = .Rect;
     rect.center = position;
     rect.scale = scale;
     update_shape_model(*rect);
@@ -31,6 +41,27 @@ make_rect :: (position: Vector3 = .{}, scale: Vector3 = .{}) -> Shape
     update_shape_vertices(*rect);
 
     return rect;
+}
+
+make_right_triangle :: (position: Vector3 = .{}, scale: Vector3 = .{}) -> Shape
+{
+    tri: Shape;
+    tri.type = .Right_Triangle;
+    tri.center = position;
+    tri.scale = scale;
+    update_shape_model(*tri);
+    tri.vertices_count = 3;
+    array_add(*tri.local_vertices, Vector3.{-0.5, 0.5, 0});
+    array_add(*tri.local_vertices, Vector3.{-0.5, -0.5, 0});
+    array_add(*tri.local_vertices, Vector3.{0.5, -0.5, 0});
+
+    for 0 .. tri.vertices_count-1 
+    {
+        array_add(*tri.global_vertices, .{});
+    }
+    update_shape_vertices(*tri);
+
+    return tri;
 }
 
 get_furthest_vertex :: (using shape: Shape) -> Vector3
