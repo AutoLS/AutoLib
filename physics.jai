@@ -3,7 +3,7 @@ physics_current_time: float = 0;
 physics_time_accumlator: float = 0;
 physics_dt: float = 1.0 / 120.0;
 
-physics_gravity: Vector3 = .{0, -98, 0};
+physics_gravity: Vector3 = .{0, -980, 0};
 physics_damping_factor: float = 0.95;
 
 set_damping_factor :: (x: float)
@@ -17,12 +17,63 @@ Sim_World :: struct
     collision_resolutions: [..] Resolution;
 }
 
+generate_random_body :: (world: *Sim_World)
+{
+    x := random_get_within_range(100, 1000);
+    y := random_get_within_range(500, 700);
+    s := random_get_within_range(30, 50);
+    mass: float = s / 5;
+
+    r: float = xx random_get_zero_to_one_open_new();
+    g: float = xx random_get_zero_to_one_open_new();
+    b: float = xx random_get_zero_to_one_open_new();
+
+    body_index := add_body(world, .{x, y, 0}, .{}, .{s, s, 0}, mass);
+    body := *world.bodies[body_index];
+    body.color = .{r, g, b, 1};
+    body.restitution = 0;
+}
+
 add_body :: (using world: *Sim_World, p: Vector3, v: Vector3, s: Vector3, mass: float = 10) -> int
 {
     body := make_rigid_body(p, v, s, mass);
     array_add(*bodies, body);
 
     return bodies.count-1;
+}
+
+add_wall :: (using world: *Sim_World, p: Vector3, s: Vector3, friction: float = 0.5) -> int
+{
+    body := make_rigid_body(p, .{}, s, 0);
+    body.freeze_orientation = true;
+    body.friction = friction;
+
+    array_add(*bodies, body);
+    return bodies.count-1;
+}
+
+add_slope :: (using world: *Sim_World, p: Vector3, s: Vector3, friction: float = 0.5) -> int 
+{
+    body := make_rigid_body(p, .{}, s, 0, .Right_Triangle);
+    body.freeze_orientation = true;
+    body.friction = friction;
+
+    array_add(*bodies, body);
+    return bodies.count-1;
+}
+
+get_body :: (world: *Sim_World, index: int) -> *Rigid_Body
+{
+    return *world.bodies[index];
+}
+
+clear_force_applied :: (using world: *Sim_World)
+{
+    for *body : bodies
+    {
+        body.force = .{};
+        body.torque = .{};
+    }
 }
 
 simulate_world :: (using world: *Sim_World)
@@ -36,6 +87,8 @@ simulate_world :: (using world: *Sim_World)
             a := *bodies[i];
             b := *bodies[j];
             resolution: Resolution;
+            resolution.cp.allocator = temp;
+            resolution.contacts.allocator = temp;
             resolution.body_a = a;
             resolution.body_b = b;
             if test_SAT(a.shape, b.shape, *resolution)
@@ -43,7 +96,7 @@ simulate_world :: (using world: *Sim_World)
                 //a.color = .{1, 0, 0, 1};
                 //b.color = .{1, 0, 0, 1};
                 array_add(*collision_resolutions, resolution);
-                print("overlap: %\n", resolution.depth);
+                //print("overlap: %\n", resolution.depth);
                 // for resolution.cp
                 // {
                 //     print("cp:% \n", it);
@@ -60,9 +113,14 @@ simulate_world :: (using world: *Sim_World)
 
     while physics_time_accumlator >= physics_dt
     {
-        for bodies
+        for *body : bodies
         {
-            integrate_for_velocity(*it, physics_dt);
+            // for body.shape.global_vertices
+            // {
+            //     apply_force(body, physics_gravity, it);
+            // }
+            apply_force(body, physics_gravity, body.position);
+            integrate_for_velocity(body, physics_dt);
         }
         
         for collision_resolutions
@@ -103,10 +161,10 @@ Rigid_Body :: struct
 
     freeze_orientation: bool;
 
-    color: Vector4;
+    color: Vector4 = .{1, 1, 1, 1};
 }
 
-make_rigid_body :: (p: Vector3, v: Vector3, s: Vector3, mass: float) -> Rigid_Body
+make_rigid_body :: (p: Vector3, v: Vector3, s: Vector3, mass: float, body_type: Polygon = .Rect) -> Rigid_Body
 {
     body: Rigid_Body;
     body.position = p;
@@ -114,7 +172,11 @@ make_rigid_body :: (p: Vector3, v: Vector3, s: Vector3, mass: float) -> Rigid_Bo
     body.orientation = Quaternion.{0, 0, 0, 1};
     body.inverse_mass = ifx mass > 0 then 1.0/mass else 0;
 
-    body.shape = make_rect(p, s);
+    if body_type ==
+    {
+        case .Rect; body.shape = make_rect(p, s);
+        case .Right_Triangle; body.shape = make_right_triangle(p, s);
+    }
     
     if mass > 0
     {
@@ -122,6 +184,7 @@ make_rigid_body :: (p: Vector3, v: Vector3, s: Vector3, mass: float) -> Rigid_Bo
         x_x := s.x * s.x;
         y_y := s.y * s.y;
 
+        //?: I will probably just use this for all types of shapes idk
         inertia_tensor: Matrix3;
         inertia_tensor._11 = one_twelve * mass * y_y;
         inertia_tensor._22 = one_twelve * mass * x_x;
@@ -133,12 +196,21 @@ make_rigid_body :: (p: Vector3, v: Vector3, s: Vector3, mass: float) -> Rigid_Bo
     return body;
 }
 
+apply_force :: (body: *Rigid_Body, f: Vector3, at: Vector3)
+{
+    body.force += f;
+    body.torque += cross(at - body.position, f);
+}
+
 integrate_for_velocity :: (body: *Rigid_Body, dt: float)
 {
-    if body.inverse_mass > 0 then body.velocity += physics_gravity * dt;
+    //if body.inverse_mass > 0 then body.velocity += physics_gravity * dt;
 
-    body.velocity += body.force * body.inverse_mass*dt;
-    body.velocity.x = body.velocity.x * physics_damping_factor;
+    if body.inverse_mass > 0
+    {
+        body.velocity += body.force * body.inverse_mass*dt;
+        body.velocity.x = body.velocity.x * physics_damping_factor;
+    }
 
     if !body.freeze_orientation
     {
@@ -211,7 +283,7 @@ resolve_contact :: (using resolution: *Resolution, c: *Contact)
                     dot(j3, body_b.velocity) +
                     dot(j4, body_b.angular_velocity);
 
-        beta: float = 0.5;
+        beta: float = 0.3;
         restitution: float = body_a.restitution * body_b.restitution;
         rel_vel := -body_a.velocity - cross(body_a.angular_velocity, r1) +
                            body_b.velocity + cross(body_b.angular_velocity, r2);
@@ -225,7 +297,6 @@ resolve_contact :: (using resolution: *Resolution, c: *Contact)
         body_a.velocity += body_a.inverse_mass * j1 * lambda;
         body_b.velocity += body_b.inverse_mass * j3 * lambda;
 
-        //? idk why the direction is flipped here for it to work
         body_a.angular_velocity += body_a.inverse_inertia * j2 * lambda;
         body_b.angular_velocity += body_b.inverse_inertia * j4 * lambda;
 
