@@ -1,4 +1,4 @@
-# My custom made library
+# My custom made library (WIP)
 
 ## Current features: 
 - Creating window using SDL
