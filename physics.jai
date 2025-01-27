@@ -111,34 +111,36 @@ simulate_world :: (using world: *Sim_World)
 
     physics_time_accumlator += frame_time;
 
-    while physics_time_accumlator >= physics_dt
+    for *body : bodies
     {
-        for *body : bodies
-        {
-            // for body.shape.global_vertices
-            // {
-            //     apply_force(body, physics_gravity, it);
-            // }
-            apply_force(body, physics_gravity, body.position);
-            integrate_for_velocity(body, physics_dt);
-        }
-        
-        for collision_resolutions
-        {
-            for c : it.contacts
-            {
-                //update_contact(*it, *c);
-                resolve_contact(*it, *c);
-            }
-        }
-
-        for bodies
-        {
-            integrate_for_position(*it, physics_dt);
-        }
-
-        physics_time_accumlator -= physics_dt;
+        // for body.shape.global_vertices
+        // {
+        //     apply_force(body, physics_gravity, it);
+        // }
+        apply_force(body, physics_gravity, body.position);
+        integrate_for_velocity(body, physics_dt);
     }
+    
+    for collision_resolutions
+    {
+        for c : it.contacts
+        {
+            //update_contact(*it, *c);
+            resolve_contact(*it, *c);
+        }
+    }
+
+    for bodies
+    {
+        integrate_for_position(*it, physics_dt);
+    }
+
+    // while physics_time_accumlator >= physics_dt
+    // {
+        
+
+    //     physics_time_accumlator -= physics_dt;
+    // }
 }
 
 Rigid_Body :: struct
@@ -162,6 +164,7 @@ Rigid_Body :: struct
     freeze_orientation: bool;
 
     color: Vector4 = .{1, 1, 1, 1};
+    rendering_shape: GL_Shape;
 }
 
 make_rigid_body :: (p: Vector3, v: Vector3, s: Vector3, mass: float, body_type: Polygon = .Rect) -> Rigid_Body
@@ -194,6 +197,17 @@ make_rigid_body :: (p: Vector3, v: Vector3, s: Vector3, mass: float, body_type: 
     }
 
     return body;
+}
+
+rotate_body :: (body: *Rigid_Body, axis: Vector3, angle: float)
+{
+    set_from_axis_and_angle(*body.orientation, axis.x, axis.y, axis.z, angle);
+    update_shape(*body.shape, body.position, body.shape.scale, body.orientation);
+}
+
+flip_body :: (body: *Rigid_Body, flip: Flip_Operation)
+{
+    flip_shape(*body.shape, flip);
 }
 
 apply_force :: (body: *Rigid_Body, f: Vector3, at: Vector3)
