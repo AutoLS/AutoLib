@@ -1,5 +1,13 @@
 #import "Math";
 
+Flip_Operation :: enum u32
+{
+    Flip_None;
+    Flip_Vertical;
+    Flip_Horizontal;
+    Flip_Z;
+}
+
 Vec2 :: struct($T: Type)
 {
     x: T;

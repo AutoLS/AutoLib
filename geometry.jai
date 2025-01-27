@@ -147,3 +147,20 @@ update_shape :: (using shape: *Shape, new_position: Vector3, new_scale: Vector3,
     update_shape_model(shape, new_position, new_scale, q);
     update_shape_vertices(shape);
 }
+
+flip_shape :: (using shape: *Shape, flip: Flip_Operation)
+{
+    if flip == 
+    {
+        case .Flip_Horizontal;
+        {
+            for *v : local_vertices v.x = -v.x;
+        }
+        case .Flip_Vertical;
+        {
+            for *v : local_vertices v.y = -v.y;
+        }
+    }
+
+    update_shape_vertices(shape);
+}
