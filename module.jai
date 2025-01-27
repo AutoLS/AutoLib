@@ -17,6 +17,7 @@ JSON :: #import "JSON_Plus";
 #load "collision.jai";
 #load "physics.jai";
 #load "application.jai";
+#load "text_rendering.jai";
 
 init_lib :: (using application: *Application)
 {
@@ -54,6 +55,11 @@ init_lib :: (using application: *Application)
     ImGui.StyleColorsClassic();
 
     imgui_io = ImGui.GetIO();
+
+    if FT_Init_FreeType(*autolib_font_library)
+    {
+        print("Could not init freetype");
+    }
 
     clock = init_clock();
 }
