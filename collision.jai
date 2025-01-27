@@ -77,6 +77,11 @@ is_projection_overlapped :: (a: Vector2, b: Vector2) -> bool
     return !(b.y < a.x || a.y < b.x);
 }
 
+is_contained :: (a: Vector2, b: Vector2) -> bool 
+{
+    return b.x > a.x && b.y < a.y;
+}
+
 get_overlap_from_projection :: (a: Vector2, b: Vector2) -> float
 {
     return min(a.y, b.y) - max(a.x, b.x);
@@ -237,6 +242,15 @@ test_SAT :: (shape_a: Shape, shape_b: Shape, resolution: *Resolution) -> bool
         else
         {
             o: float = get_overlap_from_projection(projection_a, projection_b);
+
+            if is_contained(projection_a, projection_b) || is_contained(projection_b, projection_a)
+            {
+                mins := abs(projection_a.x - projection_b.x);
+                maxs := abs(projection_a.y - projection_b.y);
+
+                o += ifx mins < maxs then mins else maxs;
+            }
+
             if o < overlap
             {
                 overlap = o;
@@ -257,6 +271,15 @@ test_SAT :: (shape_a: Shape, shape_b: Shape, resolution: *Resolution) -> bool
         else
         {
             o: float = get_overlap_from_projection(projection_a, projection_b);
+
+            if is_contained(projection_a, projection_b) || is_contained(projection_b, projection_a)
+            {
+                mins := abs(projection_a.x - projection_b.x);
+                maxs := abs(projection_a.y - projection_b.y);
+
+                o += ifx mins < maxs then mins else maxs;
+            }
+
             if o < overlap
             {
                 overlap = o;
@@ -272,4 +295,367 @@ test_SAT :: (shape_a: Shape, shape_b: Shape, resolution: *Resolution) -> bool
     generate_contacts(resolution);
 
     return true;
+}
+
+test_gjk_3d :: (shape_a: Shape, shape_b: Shape, resolution: *Resolution) -> bool
+{
+    // Initial direction can be arbitrary
+    d := Vector3.{1, 0, 0};
+    
+    // Initialize simplex
+    simplex: [..] Vector3;
+    simplex.allocator = temp;
+    
+    // Get first support point
+    first_point := support(shape_a, shape_b, d);
+    array_add(*simplex, first_point);
+    
+    // Next direction is towards the origin
+    d = -first_point;
+    
+    while true 
+    {
+        point := support(shape_a, shape_b, d);
+        
+        // If the point we found is not past the origin in the search direction
+        if dot(point, d) < 0 
+        {
+            return false; // No collision
+        }
+        
+        array_add(*simplex, point);
+        
+        if do_simplex(*simplex, *d) 
+        {
+            // Collision detected, generate collision data
+            // Use EPA (Expanding Polytope Algorithm) to find penetration depth and normal
+            normal, depth := EPA(simplex, shape_a, shape_b);
+            
+            resolution.normal = normal;
+            resolution.depth = depth;
+            resolution.mtv = normal * depth;
+            
+            // Generate contact points using the same method as SAT
+            resolution.cp = generate_contact_point(shape_a, shape_b, resolution.normal);
+            generate_contacts(resolution);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+EPA :: (simplex: [..] Vector3, shape_a: Shape, shape_b: Shape) -> Vector3, float 
+{
+    polytope := simplex;
+    polytope.allocator = temp;
+    
+    // Initialize faces of the polytope
+    faces: [..] Face;
+    faces.allocator = temp;
+    
+    // Create initial faces from the tetrahedron
+    init_faces(*faces, polytope);
+    
+    closest_face: Face;
+    min_dist := FLOAT32_MAX;
+    
+    for iterations: 0..100 
+    { // Limit iterations to prevent infinite loops
+        // Find face closest to origin
+        closest_face, min_dist = get_closest_face(faces);
+        
+        // Get support point in direction of face normal
+        p := support(shape_a, shape_b, closest_face.normal);
+        dist := dot(p, closest_face.normal);
+        
+        // Check if we're done (within tolerance)
+        if abs(dist - min_dist) < 0.0001 
+        {
+            return closest_face.normal, min_dist;
+        }
+        
+        // Expand polytope
+        expand_polytope(*polytope, *faces, p);
+    }
+    
+    return closest_face.normal, min_dist;
+}
+
+Face :: struct {
+    normal: Vector3;
+    distance: float;
+    indices: [3] int;
+}
+
+init_faces :: (faces: *[..] Face, polytope: [..] Vector3) #expand 
+{
+    // Create faces for tetrahedron
+    array_add(faces, Face.{
+        indices = .[0, 1, 2],
+        normal = normalize(cross(polytope[1] - polytope[0], polytope[2] - polytope[0])),
+    });
+    
+    array_add(faces, Face.{
+        indices = .[0, 2, 3],
+        normal = normalize(cross(polytope[2] - polytope[0], polytope[3] - polytope[0])),
+    });
+    
+    array_add(faces, Face.{
+        indices = .[0, 3, 1],
+        normal = normalize(cross(polytope[3] - polytope[0], polytope[1] - polytope[0])),
+    });
+    
+    array_add(faces, Face.{
+        indices = .[1, 3, 2],
+        normal = normalize(cross(polytope[3] - polytope[1], polytope[2] - polytope[1])),
+    });
+    
+    // Calculate distances
+    for * faces.* 
+    {
+        it.distance = dot(polytope[it.indices[0]], it.normal);
+    }
+}
+get_closest_face :: (faces: [..] Face) -> Face, float #expand 
+{
+    closest_face := faces[0];
+    min_dist := abs(faces[0].distance);
+    
+    for 1..faces.count-1 
+    {
+        dist := abs(faces[it].distance);
+        if dist < min_dist 
+        {
+            min_dist = dist;
+            closest_face = faces[it];
+        }
+    }
+    
+    return closest_face, min_dist;
+}
+expand_polytope :: (polytope: *[..] Vector3, faces: *[..] Face, point: Vector3) #expand 
+{
+    // Store edges to check for uniqueness
+    edges: [..] Edge;
+    edges.allocator = temp;
+    
+    // Remove faces that can see the new point
+    i := 0;
+    while i < faces.count 
+    {
+        if dot(faces.*[i].normal, point - polytope.*[faces.*[i].indices[0]]) > 0 
+        {
+            // Face can see point, save edges and remove face
+            add_unique_edges(*edges, faces.*[i]);
+            array_unordered_remove_by_index(faces, i);
+        } else 
+        {
+            i += 1;
+        }
+    }
+    
+    // Add new point to polytope
+    point_index := polytope.count;
+    array_add(polytope, point);
+    
+    // Create new faces using saved edges and new point
+    for edges 
+    {
+        new_face: Face;
+        new_face.indices[0] = it.a;
+        new_face.indices[1] = it.b;
+        new_face.indices[2] = point_index;
+        
+        // Calculate normal and distance
+        edge1 := polytope.*[new_face.indices[1]] - polytope.*[new_face.indices[0]];
+        edge2 := polytope.*[new_face.indices[2]] - polytope.*[new_face.indices[0]];
+        new_face.normal = normalize(cross(edge1, edge2));
+        new_face.distance = dot(polytope.*[new_face.indices[0]], new_face.normal);
+        
+        array_add(faces, new_face);
+    }
+}
+
+Edge :: struct 
+{
+    a, b: int;
+}
+
+add_unique_edges :: (edges: *[..] Edge, face: Face) #expand 
+{
+    add_if_unique :: (edges: *[..] Edge, a: int, b: int) #expand 
+    {
+        for edges.* 
+        {
+            if (it.a == a && it.b == b) || (it.a == b && it.b == a) return;
+        }
+        array_add(edges, Edge.{a, b});
+    }
+    
+    add_if_unique(edges, face.indices[0], face.indices[1]);
+    add_if_unique(edges, face.indices[1], face.indices[2]);
+    add_if_unique(edges, face.indices[2], face.indices[0]);
+}
+
+// Support function for GJK
+support :: (shape_a: Shape, shape_b: Shape, d: Vector3) -> Vector3 
+{
+    // Get furthest point of shape_a in direction d
+    point_a := shape_a.global_vertices[get_furthest_point_index_in_direction(shape_a, d)];
+    
+    // Get furthest point of shape_b in opposite direction
+    point_b := shape_b.global_vertices[get_furthest_point_index_in_direction(shape_b, -d)];
+    
+    // Return the Minkowski Difference
+    return point_a - point_b;
+}
+
+// Process simplex and modify search direction
+do_simplex :: (simplex: *[..] Vector3, d: *Vector3) -> bool 
+{
+    
+    if simplex.count ==
+    {
+        case 2; return do_line(simplex, d);
+        case 3; return do_triangle(simplex, d);
+        case 4; return do_tetrahedron(simplex, d);
+        case; return false; // Should never happen
+    }
+
+    return false;
+}
+
+do_line :: (simplex: *[..] Vector3, d: *Vector3) -> bool 
+{
+    a := simplex.*[1];
+    b := simplex.*[0];
+    
+    ab := b - a;
+    ao := -a;
+    
+    if same_direction(ab, ao) 
+    {
+        d.* = to_vector3(triple_product(ab, ao, ab));
+    }
+    else 
+    {
+        simplex.count = 1;
+        simplex.*[0] = a;
+        d.* = ao;
+    }
+    
+    return false;
+}
+
+do_triangle :: (simplex: *[..] Vector3, d: *Vector3) -> bool 
+{
+    a := simplex.*[2];
+    b := simplex.*[1];
+    c := simplex.*[0];
+    
+    ab := b - a;
+    ac := c - a;
+    ao := -a;
+    
+    abc := cross(ab, ac);
+    
+    if same_direction(cross(abc, ac), ao) 
+    {
+        if same_direction(ac, ao) 
+        {
+            simplex.count = 2;
+            simplex.*[0] = c;
+            simplex.*[1] = a;
+            d.* = to_vector3(triple_product(ac, ao, ac));
+        }
+        else 
+        {
+            simplex.count = 2;
+            simplex.*[0] = b;
+            simplex.*[1] = a;
+            return do_line(simplex, d);
+        }
+    }
+    else 
+    {
+        if same_direction(cross(ab, abc), ao) 
+        {
+            simplex.count = 2;
+            simplex.*[0] = b;
+            simplex.*[1] = a;
+            return do_line(simplex, d);
+        }
+        else 
+        {
+            if same_direction(abc, ao) 
+            {
+                d.* = abc;
+            }
+            else 
+            {
+                simplex.*[0] = b;
+                simplex.*[1] = c;
+                simplex.*[2] = a;
+                d.* = -abc;
+            }
+        }
+    }
+    
+    return false;
+}
+
+do_tetrahedron :: (simplex: *[..] Vector3, d: *Vector3) -> bool {
+    a := simplex.*[3];
+    b := simplex.*[2];
+    c := simplex.*[1];
+    d := simplex.*[0];
+    
+    ab := b - a;
+    ac := c - a;
+    ad := d - a;
+    ao := -a;
+    
+    abc := cross(ab, ac);
+    acd := cross(ac, ad);
+    adb := cross(ad, ab);
+    
+    if same_direction(abc, ao) 
+    {
+        simplex.count = 3;
+        simplex.*[0] = c;
+        simplex.*[1] = b;
+        simplex.*[2] = a;
+        return do_triangle(simplex, d);
+    }
+    
+    if same_direction(acd, ao) 
+    {
+        simplex.count = 3;
+        simplex.*[0] = d;
+        simplex.*[1] = c;
+        simplex.*[2] = a;
+        return do_triangle(simplex, d);
+    }
+    
+    if same_direction(adb, ao) 
+    {
+        simplex.count = 3;
+        simplex.*[0] = b;
+        simplex.*[1] = d;
+        simplex.*[2] = a;
+        return do_triangle(simplex, d);
+    }
+    
+    return true;
+}
+
+same_direction :: (v1: Vector3, v2: Vector3) -> bool 
+{
+    return dot(v1, v2) > 0;
+}
+
+triple_product :: (a: Vector3, b: Vector3, c: Vector3) -> Vector3 
+{
+    return cross(cross(a, b), c);
 }
