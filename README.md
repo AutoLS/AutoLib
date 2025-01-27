@@ -1,4 +1,4 @@
-# My custom made library
+# My custom made library (WIP)
 
 ## Current features: 
 - Creating window using SDL
@@ -6,8 +6,8 @@
 - ImGui support
 - 2D Constraint-based physics
 
-Example usage (Drawing a triangle using openGL):
-<code>
+Example usage (Drawing a triangle using openGL)
+```c
 #import "Basic";
 #import "Math";
 #import "AutoLib";
@@ -57,6 +57,6 @@ main :: ()
         update_clock(*app.clock);
     }
 }
-</code>
+```
 
-Example video: https://streamable.com/xxszha
+Example physics demo: https://streamable.com/xxszha
