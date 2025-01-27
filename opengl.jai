@@ -1,5 +1,7 @@
 #import "stb_image";
 
+COLOR_WHITE :: Vector4.{1, 1, 1, 1};
+
 VERTEX_SOURCE :: #string DONE
 #version 330 core
 
@@ -31,6 +33,64 @@ uniform vec4 color;
 void main ()
 {
     out_frag_color = color;
+}
+DONE
+
+Simple_Renderer :: struct
+{
+	shader: u32;
+	shape: GL_Shape;
+}
+
+create_simple_renderer :: () -> Simple_Renderer
+{
+	renderer: Simple_Renderer;
+	renderer.shader = create_shader(VERTEX_SOURCE, FRAGMENT_SOURCE);
+	renderer.shape = make_rect_shape();
+
+	return renderer;
+}
+
+TEXTURE_VERTEX_SOURCE :: #string DONE
+#version 330 core
+
+layout (location = 0) in vec3 InPos;
+layout (location = 1) in vec3 InTexCoords;
+
+out vec3 TexCoords;
+out vec3 Vertex;
+out vec3 FragPos;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+void main()
+{
+	FragPos = vec3(model * vec4(InPos, 1.0));
+	gl_Position = projection * view * vec4(FragPos, 1.0);
+	TexCoords = InTexCoords;
+}
+
+DONE
+
+TEXTURE_FRAGMENT_SOURCE :: #string DONE
+#version 330 core
+
+out vec4 FragColor;
+
+in vec3 TexCoords;
+in vec3 FragPos;
+
+uniform vec4 color;
+uniform sampler2D Texture;
+
+void main()
+{
+	vec4 tex_color = texture(Texture, TexCoords.xy) * color;
+	if(tex_color.a < 0.1)
+		discard;
+	FragColor = tex_color;
 }
 DONE
 
@@ -224,13 +284,25 @@ make_triangle_shape :: () -> GL_Shape
 	return s;
 }
 
-make_right_triangle_shape :: () -> GL_Shape
+make_right_triangle_shape :: (flip: Flip_Operation = .Flip_None) -> GL_Shape
 {
 	s: GL_Shape;
 	s.type = GL_TRIANGLES;
 	array_add(*s.vertices, Vector3.{-0.5, 0.5, 0});   
     array_add(*s.vertices, Vector3.{-0.5, -0.5, 0});  
     array_add(*s.vertices, Vector3.{0.5, -0.5, 0}); 
+
+	if flip == 
+    {
+        case .Flip_Horizontal;
+        {
+            for *v : s.vertices v.x = -v.x;
+        }
+        case .Flip_Vertical;
+        {
+            for *v : s.vertices v.y = -v.y;
+        }
+    }
 
 	gl_gen_shape(*s);
 	gl_upload_shape_data(*s);
@@ -322,6 +394,12 @@ gl_set_projection_view_matrix :: (shader: u32, projection: *Matrix4, view: *Matr
 	glUniformMatrix4fv(proj_loc, 1, true, xx projection);
 	glUniformMatrix4fv(view_loc, 1, true, xx view);
 	glUseProgram(0);
+}
+
+gl_set_vector4 :: (shader: u32, location: *u8, entry: Vector4)
+{
+	glUseProgram(shader);
+	glUniform4f(glGetUniformLocation(shader, location), entry.x, entry.y, entry.z, entry.w);
 }
 
 gl_draw :: (shape: *GL_Shape, shader: u32, model: *Matrix4, color: Vector4)
