@@ -121,15 +121,18 @@ simulate_world :: (using world: *Sim_World)
         integrate_for_velocity(body, physics_dt);
     }
     
-    for collision_resolutions
+    for iteration : 0 .. 3
     {
-        for c : it.contacts
+        for collision_resolutions
         {
-            //update_contact(*it, *c);
-            resolve_contact(*it, *c);
+            for c : it.contacts
+            {
+                //update_contact(*it, *c);
+                resolve_contact(*it, *c);
+            }
         }
     }
-
+    
     for bodies
     {
         integrate_for_position(*it, physics_dt);
