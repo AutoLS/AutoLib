@@ -299,8 +299,9 @@ resolve_contact :: (using resolution: *Resolution, c: *Contact)
         lambda: float = effective_mass * (-(jv + b));
         lambda = max(lambda, 0);
 
+        //TODO: Make this into user settings
         // Resting contact threshold
-        resting_threshold := 0.1;  // Adjust this value based on your simulation scale
+        resting_threshold := 0.1;  // Adjust this value based on simulation scale
         if abs(closing_vel) < resting_threshold
         {
             // Reduce the impulse for resting contacts
@@ -314,7 +315,6 @@ resolve_contact :: (using resolution: *Resolution, c: *Contact)
         body_a.angular_velocity += body_a.inverse_inertia * j2 * lambda;
         body_b.angular_velocity += body_b.inverse_inertia * j4 * lambda;
 
-        // Friction handling (optional, but recommended for stability)
         va := body_a.velocity + cross(body_a.angular_velocity, r1);
         vb := body_b.velocity + cross(body_b.angular_velocity, r2);
 
