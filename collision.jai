@@ -536,7 +536,7 @@ do_line :: (simplex: *[..] Vector3, d: *Vector3) -> bool
     
     if same_direction(ab, ao) 
     {
-        d.* = to_vector3(triple_product(ab, ao, ab));
+        d.* = triple_product(ab, ao, ab);
     }
     else 
     {
@@ -567,7 +567,7 @@ do_triangle :: (simplex: *[..] Vector3, d: *Vector3) -> bool
             simplex.count = 2;
             simplex.*[0] = c;
             simplex.*[1] = a;
-            d.* = to_vector3(triple_product(ac, ao, ac));
+            d.* = triple_product(ac, ao, ac);
         }
         else 
         {
@@ -605,7 +605,8 @@ do_triangle :: (simplex: *[..] Vector3, d: *Vector3) -> bool
     return false;
 }
 
-do_tetrahedron :: (simplex: *[..] Vector3, d: *Vector3) -> bool {
+do_tetrahedron :: (simplex: *[..] Vector3, dir: *Vector3) -> bool 
+{
     a := simplex.*[3];
     b := simplex.*[2];
     c := simplex.*[1];
@@ -626,7 +627,7 @@ do_tetrahedron :: (simplex: *[..] Vector3, d: *Vector3) -> bool {
         simplex.*[0] = c;
         simplex.*[1] = b;
         simplex.*[2] = a;
-        return do_triangle(simplex, d);
+        return do_triangle(simplex, dir);
     }
     
     if same_direction(acd, ao) 
@@ -635,7 +636,7 @@ do_tetrahedron :: (simplex: *[..] Vector3, d: *Vector3) -> bool {
         simplex.*[0] = d;
         simplex.*[1] = c;
         simplex.*[2] = a;
-        return do_triangle(simplex, d);
+        return do_triangle(simplex, dir);
     }
     
     if same_direction(adb, ao) 
@@ -644,7 +645,7 @@ do_tetrahedron :: (simplex: *[..] Vector3, d: *Vector3) -> bool {
         simplex.*[0] = b;
         simplex.*[1] = d;
         simplex.*[2] = a;
-        return do_triangle(simplex, d);
+        return do_triangle(simplex, dir);
     }
     
     return true;

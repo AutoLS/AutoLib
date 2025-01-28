@@ -271,15 +271,6 @@ resolve_contact :: (using resolution: *Resolution, c: *Contact)
     r1 := c.rel_pos_a;
     r2 := c.rel_pos_b;
 
-/*  NOTE: Resolution
-    JV + b = 0
-    C: (Pb - Pa) . n >= 0
-    C': (-va - wa x ra + vb + wb x rb) . n >= 0
-    where J = [-n r1xn n -r2xn]
-    lambda = -(JV + b) * EffectiveMass
-    EffectiveMass = (J*Minv*JT)
-*/
-
     j1: Vector3 = ifx body_a.inverse_mass == 0 then .{} else -c.normal;
     j2: Vector3 = ifx body_a.inverse_mass == 0 then .{} else cross(r1, c.normal);
     j3: Vector3 = ifx body_b.inverse_mass == 0 then .{} else c.normal;
@@ -297,7 +288,7 @@ resolve_contact :: (using resolution: *Resolution, c: *Contact)
                     dot(j3, body_b.velocity) +
                     dot(j4, body_b.angular_velocity);
 
-        beta: float = 0.3;
+        beta: float = 0.3;  // Baumgarte stabilization factor
         restitution: float = body_a.restitution * body_b.restitution;
         rel_vel := -body_a.velocity - cross(body_a.angular_velocity, r1) +
                            body_b.velocity + cross(body_b.angular_velocity, r2);
@@ -308,12 +299,22 @@ resolve_contact :: (using resolution: *Resolution, c: *Contact)
         lambda: float = effective_mass * (-(jv + b));
         lambda = max(lambda, 0);
 
+        // Resting contact threshold
+        resting_threshold := 0.1;  // Adjust this value based on your simulation scale
+        if abs(closing_vel) < resting_threshold
+        {
+            // Reduce the impulse for resting contacts
+            lambda *= 0.5;  // You can adjust this scaling factor
+        }
+
+        // Apply the impulse to the bodies
         body_a.velocity += body_a.inverse_mass * j1 * lambda;
         body_b.velocity += body_b.inverse_mass * j3 * lambda;
 
         body_a.angular_velocity += body_a.inverse_inertia * j2 * lambda;
         body_b.angular_velocity += body_b.inverse_inertia * j4 * lambda;
 
+        // Friction handling (optional, but recommended for stability)
         va := body_a.velocity + cross(body_a.angular_velocity, r1);
         vb := body_b.velocity + cross(body_b.angular_velocity, r2);
 
@@ -324,7 +325,8 @@ resolve_contact :: (using resolution: *Resolution, c: *Contact)
         if(tangent_length > 0.000001)
         {
             tangent = tangent / tangent_length;
-            d: float = dot(tangent, cross(body_a.inverse_inertia * cross(r1, tangent), r1) + cross(body_b.inverse_inertia * cross(r2, tangent), r2));
+            d: float = dot(tangent, cross(body_a.inverse_inertia * cross(r1, tangent), r1) + 
+                           cross(body_b.inverse_inertia * cross(r2, tangent), r2));
 
             friction_mass: float = body_a.inverse_mass + body_b.inverse_mass + d;
 
