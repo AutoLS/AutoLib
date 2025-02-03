@@ -21,6 +21,35 @@ Shape :: struct
     type: Polygon;
 }
 
+AABB :: struct
+{
+    min: Vector3;
+    max: Vector3;
+}
+
+get_aabb :: (shape: Shape) -> AABB
+{
+    aabb: AABB;
+
+    // Initialize min and max with the first vertex
+    aabb.min = shape.global_vertices[0];
+    aabb.max = shape.global_vertices[0];
+    
+    // Iterate through all global vertices to find the min and max extents
+    for vertex: shape.global_vertices
+    {
+        aabb.min.x = min(aabb.min.x, vertex.x);
+        aabb.min.y = min(aabb.min.y, vertex.y);
+        aabb.min.z = min(aabb.min.z, vertex.z);
+        
+        aabb.max.x = max(aabb.max.x, vertex.x);
+        aabb.max.y = max(aabb.max.y, vertex.y);
+        aabb.max.z = max(aabb.max.z, vertex.z);
+    }
+    
+    return aabb;
+}
+
 make_rect :: (position: Vector3 = .{}, scale: Vector3 = .{}) -> Shape
 {
     rect: Shape;

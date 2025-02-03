@@ -80,27 +80,34 @@ simulate_world :: (using world: *Sim_World)
 {
     array_reset(*collision_resolutions);
 
+    // Broad-phase collision detection using AABB
     for i : 0 .. bodies.count-1
     {
+        a := *bodies[i];
+        a_aabb := get_aabb(a.shape);  // Get the AABB for body A
+
         for j : i+1 .. bodies.count-1
         {
-            a := *bodies[i];
             b := *bodies[j];
-            resolution: Resolution;
-            resolution.cp.allocator = temp;
-            resolution.contacts.allocator = temp;
-            resolution.body_a = a;
-            resolution.body_b = b;
-            if test_SAT(a.shape, b.shape, *resolution)
+            b_aabb := get_aabb(b.shape);  // Get the AABB for body B
+
+            // Check if AABBs overlap
+            if a_aabb.min.x <= b_aabb.max.x && a_aabb.max.x >= b_aabb.min.x &&
+               a_aabb.min.y <= b_aabb.max.y && a_aabb.max.y >= b_aabb.min.y &&
+               a_aabb.min.z <= b_aabb.max.z && a_aabb.max.z >= b_aabb.min.z
             {
-                //a.color = .{1, 0, 0, 1};
-                //b.color = .{1, 0, 0, 1};
-                array_add(*collision_resolutions, resolution);
-                //print("overlap: %\n", resolution.depth);
-                // for resolution.cp
-                // {
-                //     print("cp:% \n", it);
-                // }
+                // AABBs overlap, proceed to narrow-phase collision detection
+                resolution: Resolution;
+                resolution.cp.allocator = temp;
+                resolution.contacts.allocator = temp;
+                resolution.body_a = a;
+                resolution.body_b = b;
+
+                if test_SAT(a.shape, b.shape, *resolution)
+                {
+                    // Collision detected in narrow-phase, add to resolutions
+                    array_add(*collision_resolutions, resolution);
+                }
             }
         }
     }
