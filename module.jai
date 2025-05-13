@@ -18,6 +18,7 @@ JSON :: #import "JSON_Plus";
 #load "physics.jai";
 #load "application.jai";
 #load "text_rendering.jai";
+#load "audio.jai";
 
 init_lib :: (using application: *Application)
 {
@@ -62,4 +63,8 @@ init_lib :: (using application: *Application)
     }
 
     clock = init_clock();
+
+    sp_init_success := sound_player_init(.{});
+    assert(sp_init_success);
+
 }
