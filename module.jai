@@ -19,8 +19,9 @@ JSON :: #import "JSON_Plus";
 #load "application.jai";
 #load "text_rendering.jai";
 #load "audio.jai";
+#load "file.jai";
 
-init_lib :: (using application: *Application)
+init_lib :: (using application: *Application, init_sound: bool = false)
 {
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -64,7 +65,10 @@ init_lib :: (using application: *Application)
 
     clock = init_clock();
 
-    sp_init_success := sound_player_init(.{});
-    assert(sp_init_success);
+    if init_sound
+    {
+        sp_init_success := sound_player_init(.{});
+        //assert(sp_init_success);
+    }
 
 }
