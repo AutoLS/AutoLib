@@ -21,11 +21,17 @@ Key_Code :: enum u32
 	down :: SDL_SCANCODE_DOWN;
 
 	space :: SDL_SCANCODE_SPACE;
+	lctrl :: SDL_SCANCODE_LCTRL;
+
+	n :: SDL_SCANCODE_N;
+	o :: SDL_SCANCODE_O;
+	s :: SDL_SCANCODE_S;
 }
 
 Input :: struct
 {
 	keyboard: Controller_Input;
+	keyboard_state: *u8;
 	mouse_state: Vec2(s32);
 	left_button: Button_State;
 	right_button: Button_State;
