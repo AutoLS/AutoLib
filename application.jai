@@ -7,6 +7,7 @@ Application :: struct
     input: Input;
     clock: Clock;
     sound_player: Sound_Player;
+    file_handler: File_Handler;
 
     window: *SDL_Window;
     name: string;
