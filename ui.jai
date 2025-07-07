@@ -74,3 +74,15 @@ combo_box :: (label: *u8, items: [] *u8, selected: *s32)
         }
     }
 }
+
+tool_tip :: (text: string, wrap_pos: float = 400)
+{
+    if ImGui.IsItemHovered() 
+    {
+        ImGui.BeginTooltip();
+        ImGui.PushTextWrapPos(wrap_pos);
+        ImGui.TextUnformatted(text);
+        ImGui.PopTextWrapPos();
+        ImGui.EndTooltip();
+    }
+}
